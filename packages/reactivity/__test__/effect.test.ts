@@ -2,9 +2,9 @@ import { reactive, effect, stop } from "../src/reactive"
 
 describe('effect', () => {
   it('happy path', ()=> {
-    const user = reactive({
+    const user: { age: number } = reactive({
       age: 10
-    }) as { age: number }
+    })
 
     let nextAge
     effect(() => {
@@ -35,7 +35,7 @@ describe('effect', () => {
     const scheduler = vi.fn(() => {
       run = runner
     })
-    const obj = reactive({ foo: 1 }) as { foo: number }
+    const obj = reactive({ foo: 1 })
     const runner = effect(
       () => {
         dummy = obj.foo

@@ -1,25 +1,25 @@
 import { extend } from "@mini-vue/shared"
+import { mutableHandlers, readonlyHandlers } from "./baseHandlers"
 
+function createReactiveObject(target, baseHandlers) {
+  return new Proxy(target, baseHandlers)
+}
 /**
  * @description 将原始对象变成响应式对象
  * @param raw 原始对象
  * @returns 响应式对象
  */
 function reactive(raw: object) {
-  return new Proxy(raw, {
-    get(target, key) {
-      const res = Reflect.get(target, key)
-      // 收集依赖
-      track(target, key)
-      return res
-    },
-    set(target, key, value) {
-      const res = Reflect.set(target, key, value)
-      // 触发依赖
-      trigger(target, key)
-      return res
-    }
-  })
+  return createReactiveObject(raw, mutableHandlers)
+}
+
+/**
+ * @description 将原始对象变成只读对象
+ * @param raw 原始对象
+ * @returns 只读对象
+ */
+function readonly(raw: object) {
+  return createReactiveObject(raw, readonlyHandlers)
 }
 
 /**
@@ -129,4 +129,4 @@ function stop(runner) {
   runner.effect.stop()
 }
 
-export { reactive, effect, stop }
+export { reactive, readonly, track, trigger, effect, stop }
