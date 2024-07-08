@@ -9,12 +9,23 @@ import { extend } from "@mini-vue/shared"
  */
 const targetMap = new WeakMap()
 
+let shouldTrack: boolean = false
+
+/**
+ * @description 当前副作用函数是否处于Tracking状态
+ * @returns {boolean}
+ */
+function isTracking() {
+  return shouldTrack && activeEffect !== undefined
+}
+
 /**
  * @description 收集依赖
  * @param target 对象
  * @param key 对象属性值
  */
 function track(target, key) {
+  if (!isTracking()) return
   let depsMap = targetMap.get(target)
   if (!depsMap) {
     targetMap.set(target, (depsMap = new Map()))
@@ -23,8 +34,15 @@ function track(target, key) {
   if (!dep) {
     depsMap.set(key, (dep = new Set()))
   }
-  // 对象不存在的时候不需要收集依赖 -- 不是副作用函数
-  if (!activeEffect) return
+  trackEffects(dep)
+}
+
+/**
+ * @description 收集依赖 - 将当前激活的副作用函数加入到dep中
+ * @param dep 
+ */
+function trackEffects(dep) {
+  if (dep.has(activeEffect)) return
   dep.add(activeEffect)
   activeEffect?.deps.push(dep)
 }
@@ -37,11 +55,19 @@ function track(target, key) {
 function trigger(target, key) {
   const depsMap = targetMap.get(target)
   let dep = depsMap.get(key)
+  triggerEffects(dep)
+}
+
+/**
+ * @description 触发依赖 - 触发dep中的所有副作用函数
+ * @param dep 
+ */
+function triggerEffects(dep) {
   for (const effect of dep) {
-    if (effect.scheduler) {
-      effect.scheduler(effect._fn)
+    if (effect?.scheduler) {
+      effect?.scheduler(effect._fn)
     } else {
-      effect.run()
+      effect?.run()
     }
   }
 }
@@ -62,8 +88,16 @@ class ReactiveEffect {
     this.scheduler = scheduler
   }
   run() {
+    if (!this.active) {
+      // 是 runner 执行
+      this._fn()
+    }
+
+    shouldTrack = true // 打开收集依赖的开关
     activeEffect = this
-    return this._fn()
+    const result = this._fn()
+    shouldTrack = false // 关闭收集依赖的开关
+    return result
   }
   stop() {
     if (this.active) {
@@ -84,6 +118,7 @@ function cleanupEffect(effect: ReactiveEffect) {
   effect.deps.forEach((dep) => {
     dep.delete(effect)
   })
+  effect.deps.length = 0
 }
 
 /**
@@ -108,4 +143,4 @@ function stop(runner) {
   runner.effect.stop()
 }
 
-export { effect, stop, track, trigger }
+export { effect, stop, track, trigger, trackEffects, triggerEffects }
